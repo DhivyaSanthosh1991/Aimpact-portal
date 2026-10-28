@@ -498,7 +498,7 @@ function HomeView({ setView, providers, consultants, briefs }) {
       key: "demand", label: "Demand", icon: Briefcase,
       title: "I need an AI solution",
       body: "Describe the problem. StartupTN helps scope it, matches you with a verified provider, and stays involved until it's solved.",
-      cta: "Submit a brief", action: () => setView("demand-brief"),
+      cta: "Submit a demand request", action: () => setView("demand-brief"),
     },
   ];
 
@@ -868,7 +868,7 @@ function DemandBriefView({ setView, briefs, setBriefs, persist }) {
     return (
       <PageShell narrow>
         <ShieldCheck size={28} style={{ color: BLUE }} />
-        <h2 className="aim-display text-2xl font-semibold mt-4 mb-2" style={{ color: INK }}>Brief submitted</h2>
+        <h2 className="aim-display text-2xl font-semibold mt-4 mb-2" style={{ color: INK }}>Demand request received</h2>
         <p className="text-sm leading-relaxed mb-6" style={{ color: SLATE }}>
           A StartupTN-assigned expert will run a scoping session next to turn this into a
           structured problem definition, then match it against verified providers. Track progress
@@ -886,7 +886,7 @@ function DemandBriefView({ setView, briefs, setBriefs, persist }) {
   return (
     <PageShell narrow>
       <BackLink setView={setView} />
-      <h2 className="aim-display text-2xl font-semibold mb-1" style={{ color: INK }}>Submit an AI Opportunity Brief</h2>
+      <h2 className="aim-display text-2xl font-semibold mb-1" style={{ color: INK }}>Submit a demand request</h2>
       <p className="text-sm mb-8" style={{ color: SLATE }}>Describe the problem in your own words — scoping help comes after.</p>
       <form onSubmit={submit}>
         <Field label="Organisation name" required>
@@ -916,7 +916,7 @@ function DemandBriefView({ setView, briefs, setBriefs, persist }) {
         </div>
         {g.render()}
         {error && <div className="text-sm mb-4" style={{ color: RED }}>{error}</div>}
-        <Button type="submit" variant="teal" className="mt-2" disabled={saving}>{saving ? "Submitting…" : "Submit brief"}</Button>
+        <Button type="submit" variant="teal" className="mt-2" disabled={saving}>{saving ? "Submitting…" : "Submit demand request"}</Button>
       </form>
     </PageShell>
   );
@@ -1110,7 +1110,7 @@ function StatusCheckView({ setView }) {
       {error && <div className="text-sm mb-4" style={{ color: RED }}>{error}</div>}
       {result && result.kind === "briefs" && (
         <div className="p-4 rounded-md border" style={{ borderColor: LINE }}>
-          <div className="text-sm font-semibold mb-3" style={{ color: INK }}>{result.item.orgName} · AI Opportunity Brief</div>
+            <div className="text-sm font-semibold mb-3" style={{ color: INK }}>{result.item.orgName} · Demand request</div>
           <StageTracker stage={result.item.outcomeStatus === "Not Completed" ? "Not Completed" : result.item.stage} />
           {result.item.selectedProviderName && <div className="text-xs mt-3" style={{ color: SLATE }}>Working with {result.item.selectedProviderName}</div>}
         </div>
@@ -1285,19 +1285,33 @@ function ReviewList({ items, selectedId, onSelect, emptyText }) {
             <div className="text-sm font-medium" style={{ color: INK }}>{it.name || it.orgName}</div>
             <div className="text-xs" style={{ color: SLATE }}>{it.sector}</div>
           </div>
-          <ChevronRight size={15} style={{ color: SLATE }} />
+          <div className="flex items-center gap-3"><Badge status={it.status} /><ChevronRight size={15} style={{ color: SLATE }} /></div>
         </button>
       ))}
     </div>
   );
 }
 
-function ProviderReviewPanel({ provider, onScore, onDecide }) {
+function RecordFilter({ value, onChange, options }) {
+  return (
+    <div className="flex flex-wrap gap-2 mb-5" role="group" aria-label="Filter records">
+      {options.map((option) => (
+        <button key={option.value} type="button" onClick={() => onChange(option.value)}
+          className="text-sm px-3 py-1.5 rounded-md border font-medium"
+          style={{ borderColor: value === option.value ? BLUE : LINE, background: value === option.value ? BLUE_SOFT : "white", color: value === option.value ? BLUE : SLATE }}>
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function ProviderReviewPanel({ provider, onDecide, readOnly = false }) {
   const [scores, setScores] = useState(provider?.scores || {});
   const [notes, setNotes] = useState(provider?.reviewNotes || "");
   useEffect(() => { setScores(provider?.scores || {}); setNotes(provider?.reviewNotes || ""); }, [provider?.id]);
   if (!provider) return null;
-  const total = scoreTotal(scores, PROVIDER_CATS);
+  const total = readOnly ? Number(provider.totalScore) || 0 : scoreTotal(scores, PROVIDER_CATS);
   const result = tierFromScore(total);
   return (
     <div>
@@ -1321,30 +1335,32 @@ function ProviderReviewPanel({ provider, onScore, onDecide }) {
         )}
       </div>
       <div className="max-w-md">
-        {PROVIDER_CATS.map((cat) => (
+        {readOnly ? PROVIDER_CATS.map((cat) => (
+          <div key={cat.key} className="flex items-center justify-between py-2 border-b text-sm" style={{ borderColor: LINE, color: INK_SOFT }}>
+            <span>{cat.label}</span><b style={{ color: INK }}>{Number(scores[cat.key]) || 0}/{cat.max}</b>
+          </div>
+        )) : PROVIDER_CATS.map((cat) => (
           <ScoreSlider key={cat.key} cat={cat} value={scores[cat.key]} onChange={(k, v) => setScores((s) => ({ ...s, [k]: v }))} />
         ))}
       </div>
       <div className="flex items-center gap-3 my-5">
         <div className="text-2xl font-semibold aim-display" style={{ color: INK }}>{total}/100</div>
-        <Badge status={result.status} /><span className="text-sm" style={{ color: SLATE }}>{result.tier}</span>
+        <Badge status={readOnly ? provider.status : result.status} /><span className="text-sm" style={{ color: SLATE }}>{displayTier(readOnly ? provider.tier : result.tier)}</span>
       </div>
-      <Field label="Review notes">
-        <TextArea value={notes} onChange={(e) => setNotes(e.target.value)} />
-      </Field>
-      <div className="flex gap-3">
-        <Button variant="teal" onClick={() => onDecide(provider.id, scores, notes)}>Save verification</Button>
-      </div>
+      {readOnly
+        ? <div className="mt-4"><div className="text-sm font-semibold mb-1" style={{ color: INK }}>Review notes</div><p className="text-sm whitespace-pre-wrap" style={{ color: INK_SOFT }}>{provider.reviewNotes || "No review notes."}</p></div>
+        : <><Field label="Review notes"><TextArea value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
+          <div className="flex gap-3"><Button variant="teal" onClick={() => onDecide(provider.id, scores, notes)}>Save verification</Button></div></>}
     </div>
   );
 }
 
-function ConsultantReviewPanel({ consultant, onDecide }) {
+function ConsultantReviewPanel({ consultant, onDecide, readOnly = false }) {
   const [scores, setScores] = useState(consultant?.scores || {});
   const [notes, setNotes] = useState(consultant?.reviewNotes || "");
   useEffect(() => { setScores(consultant?.scores || {}); setNotes(consultant?.reviewNotes || ""); }, [consultant?.id]);
   if (!consultant) return null;
-  const total = scoreTotal(scores, CONSULTANT_CATS);
+  const total = readOnly ? Number(consultant.totalScore) || 0 : scoreTotal(scores, CONSULTANT_CATS);
   const result = consultantTierFromScore(total);
   return (
     <div>
@@ -1357,18 +1373,22 @@ function ConsultantReviewPanel({ consultant, onDecide }) {
         </div>
       </div>
       <div className="max-w-md">
-        {CONSULTANT_CATS.map((cat) => (
+        {readOnly ? CONSULTANT_CATS.map((cat) => (
+          <div key={cat.key} className="flex items-center justify-between py-2 border-b text-sm" style={{ borderColor: LINE, color: INK_SOFT }}>
+            <span>{cat.label}</span><b style={{ color: INK }}>{Number(scores[cat.key]) || 0}/{cat.max}</b>
+          </div>
+        )) : CONSULTANT_CATS.map((cat) => (
           <ScoreSlider key={cat.key} cat={cat} value={scores[cat.key]} onChange={(k, v) => setScores((s) => ({ ...s, [k]: v }))} />
         ))}
       </div>
       <div className="flex items-center gap-3 my-5">
         <div className="text-2xl font-semibold aim-display" style={{ color: INK }}>{total}/100</div>
-        <Badge status={result.status} /><span className="text-sm" style={{ color: SLATE }}>{result.tier}</span>
+        <Badge status={readOnly ? consultant.status : result.status} /><span className="text-sm" style={{ color: SLATE }}>{displayTier(readOnly ? consultant.tier : result.tier)}</span>
       </div>
-      <Field label="Review notes">
-        <TextArea value={notes} onChange={(e) => setNotes(e.target.value)} />
-      </Field>
-      <Button variant="teal" onClick={() => onDecide(consultant.id, scores, notes)}>Save empanelment decision</Button>
+      {readOnly
+        ? <div className="mt-4"><div className="text-sm font-semibold mb-1" style={{ color: INK }}>Review notes</div><p className="text-sm whitespace-pre-wrap" style={{ color: INK_SOFT }}>{consultant.reviewNotes || "No review notes."}</p></div>
+        : <Field label="Review notes"><TextArea value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>}
+      {!readOnly && <Button variant="teal" onClick={() => onDecide(consultant.id, scores, notes)}>Save empanelment decision</Button>}
     </div>
   );
 }
@@ -1757,15 +1777,18 @@ function AdminUsersPanel() {
 function AdminView({ providers, setProviders, consultants, setConsultants, briefs, setBriefs, persist, session, onSignOut, onDelete }) {
   const [tab, setTab] = useState("overview");
   const [selId, setSelId] = useState(null);
+  const [reviewFilter, setReviewFilter] = useState("pending");
+  const [requestFilter, setRequestFilter] = useState("active");
   const [contacts, setContacts] = useState({});      // contact details of records opened in this visit
   const [opened, setOpened] = useState({ id: null, error: "" });
 
   // Contact details are not in the lists. Opening a record fetches them, and the server logs it.
   useEffect(() => {
-    if (!selId || !["providers", "consultants", "briefs"].includes(tab)) return;
+    if (!selId || !["providers", "consultants", "briefs", "directory"].includes(tab)) return;
     let cancelled = false;
     setOpened({ id: null, error: "" });
-    api.adminRecord(tab, selId)
+    const collection = tab === "directory" ? "providers" : tab;
+    api.adminRecord(collection, selId)
       .then(({ record }) => {
         if (cancelled) return;
         setContacts((c) => ({ ...c, [selId]: Object.fromEntries(CONTACT_FIELDS.filter((f) => record[f] !== undefined).map((f) => [f, record[f]])) }));
@@ -1783,7 +1806,7 @@ function AdminView({ providers, setProviders, consultants, setConsultants, brief
     { key: "overview", label: "Overview", icon: BarChart3 },
     { key: "providers", label: "Providers", icon: Building2, count: providers.filter((p) => p.status === "Pending").length },
     { key: "consultants", label: "Expert validators", icon: Users, count: consultants.filter((c) => c.status === "Pending").length },
-    { key: "briefs", label: "Briefs", icon: ClipboardList, count: briefs.filter((b) => b.stage !== "Completed").length },
+    { key: "briefs", label: "Demand requests", icon: ClipboardList, count: briefs.filter((b) => b.stage !== "Completed").length },
     { key: "directory", label: "Directory", icon: LayoutGrid },
     ...(session.role === "owner" ? [
       { key: "requests", label: "Data & exports", icon: Search },
@@ -1792,8 +1815,14 @@ function AdminView({ providers, setProviders, consultants, setConsultants, brief
   ];
 
   const pendingProviders = providers.filter((p) => p.status === "Pending");
+  const reviewedProviders = providers.filter((p) => p.status !== "Pending");
   const pendingConsultants = consultants.filter((c) => c.status === "Pending");
+  const reviewedConsultants = consultants.filter((c) => c.status !== "Pending");
   const openBriefs = briefs;
+  const visibleProviders = reviewFilter === "pending" ? pendingProviders : reviewFilter === "reviewed" ? reviewedProviders : providers;
+  const visibleConsultants = reviewFilter === "pending" ? pendingConsultants : reviewFilter === "reviewed" ? reviewedConsultants : consultants;
+  const visibleBriefs = requestFilter === "active" ? openBriefs.filter((b) => b.stage !== "Completed") :
+    requestFilter === "completed" ? openBriefs.filter((b) => b.stage === "Completed") : openBriefs;
 
   const decideProvider = async (id, scores, notes) => {
     const total = scoreTotal(scores, PROVIDER_CATS);
@@ -1847,14 +1876,20 @@ function AdminView({ providers, setProviders, consultants, setConsultants, brief
           selId ? (
             <>
               <button onClick={() => setSelId(null)} className="text-sm font-medium mb-6 flex items-center gap-1.5" style={{ color: SLATE }}>
-                <ArrowLeft size={15} /> All pending
+                <ArrowLeft size={15} /> All providers
               </button>
-              {gate(<ProviderReviewPanel provider={withContact(pendingProviders.find((p) => p.id === selId))} onDecide={decideProvider} />)}
+              {gate(<ProviderReviewPanel provider={withContact(providers.find((p) => p.id === selId))} onDecide={decideProvider} readOnly={providers.find((p) => p.id === selId)?.status !== "Pending"} />)}
             </>
           ) : (
             <>
-              <h3 className="text-lg font-semibold mb-6" style={{ color: INK }}>Pending providers</h3>
-              <ReviewList items={pendingProviders} selectedId={selId} onSelect={setSelId} emptyText="No pending provider applications." />
+              <h3 className="text-lg font-semibold mb-4" style={{ color: INK }}>Provider applications</h3>
+              <RecordFilter value={reviewFilter} onChange={(v) => { setReviewFilter(v); setSelId(null); }} options={[
+                { value: "pending", label: `Pending (${pendingProviders.length})` },
+                { value: "reviewed", label: `Reviewed (${reviewedProviders.length})` },
+                { value: "all", label: `All (${providers.length})` },
+              ]} />
+              <ReviewList items={visibleProviders} selectedId={selId} onSelect={setSelId}
+                emptyText={reviewFilter === "pending" ? "No pending provider applications." : "No provider applications in this view."} />
             </>
           )
         )}
@@ -1863,14 +1898,20 @@ function AdminView({ providers, setProviders, consultants, setConsultants, brief
           selId ? (
             <>
               <button onClick={() => setSelId(null)} className="text-sm font-medium mb-6 flex items-center gap-1.5" style={{ color: SLATE }}>
-                <ArrowLeft size={15} /> All pending
+                <ArrowLeft size={15} /> All expert validators
               </button>
-              {gate(<ConsultantReviewPanel consultant={withContact(pendingConsultants.find((c) => c.id === selId))} onDecide={decideConsultant} />)}
+              {gate(<ConsultantReviewPanel consultant={withContact(consultants.find((c) => c.id === selId))} onDecide={decideConsultant} readOnly={consultants.find((c) => c.id === selId)?.status !== "Pending"} />)}
             </>
           ) : (
             <>
-              <h3 className="text-lg font-semibold mb-6" style={{ color: INK }}>Pending expert validators</h3>
-              <ReviewList items={pendingConsultants} selectedId={selId} onSelect={setSelId} emptyText="No pending expert validator applications." />
+              <h3 className="text-lg font-semibold mb-4" style={{ color: INK }}>Expert validator applications</h3>
+              <RecordFilter value={reviewFilter} onChange={(v) => { setReviewFilter(v); setSelId(null); }} options={[
+                { value: "pending", label: `Pending (${pendingConsultants.length})` },
+                { value: "reviewed", label: `Reviewed (${reviewedConsultants.length})` },
+                { value: "all", label: `All (${consultants.length})` },
+              ]} />
+              <ReviewList items={visibleConsultants} selectedId={selId} onSelect={setSelId}
+                emptyText={reviewFilter === "pending" ? "No pending expert validator applications." : "No expert validators in this view."} />
             </>
           )
         )}
@@ -1879,16 +1920,21 @@ function AdminView({ providers, setProviders, consultants, setConsultants, brief
           selId ? (
             <>
               <button onClick={() => setSelId(null)} className="text-sm font-medium mb-6 flex items-center gap-1.5" style={{ color: SLATE }}>
-                <ArrowLeft size={15} /> All briefs
+                <ArrowLeft size={15} /> All demand requests
               </button>
               {gate(<EngagementPanel brief={withContact(openBriefs.find((b) => b.id === selId))} providers={providers} onUpdate={updateBrief} />)}
             </>
           ) : (
             <>
-              <h3 className="text-lg font-semibold mb-6" style={{ color: INK }}>Briefs & engagements</h3>
-              {openBriefs.length === 0 ? <EmptyState text="No briefs submitted yet." /> : (
+              <h3 className="text-lg font-semibold mb-4" style={{ color: INK }}>Demand requests & engagements</h3>
+              <RecordFilter value={requestFilter} onChange={(v) => { setRequestFilter(v); setSelId(null); }} options={[
+                { value: "active", label: `Active (${openBriefs.filter((b) => b.stage !== "Completed").length})` },
+                { value: "completed", label: `Completed (${openBriefs.filter((b) => b.stage === "Completed").length})` },
+                { value: "all", label: `All (${openBriefs.length})` },
+              ]} />
+              {visibleBriefs.length === 0 ? <EmptyState text={`No ${requestFilter === "active" ? "active" : requestFilter} demand requests.`} /> : (
                 <div className="divide-y" style={{ borderColor: LINE }}>
-                  {openBriefs.map((b) => (
+                  {visibleBriefs.map((b) => (
                     <button key={b.id} onClick={() => setSelId(b.id)} className="w-full text-left py-3.5 flex items-center justify-between gap-3">
                       <div>
                         <div className="text-sm font-medium" style={{ color: INK }}>{b.orgName}</div>
@@ -1904,21 +1950,30 @@ function AdminView({ providers, setProviders, consultants, setConsultants, brief
         )}
 
         {tab === "directory" && (
+          selId ? (
+            <>
+              <button onClick={() => setSelId(null)} className="text-sm font-medium mb-6 flex items-center gap-1.5" style={{ color: SLATE }}>
+                <ArrowLeft size={15} /> Full directory
+              </button>
+              {gate(<ProviderReviewPanel provider={withContact(providers.find((p) => p.id === selId))} readOnly />)}
+            </>
+          ) : (
           <>
             <h3 className="text-lg font-semibold mb-6" style={{ color: INK }}>Full directory</h3>
             <div className="divide-y" style={{ borderColor: LINE }}>
               {providers.map((p) => (
-                <div key={p.id} className="py-3 flex items-center justify-between">
+                <button key={p.id} onClick={() => setSelId(p.id)} className="w-full text-left py-3 flex items-center justify-between gap-3 hover:bg-gray-50">
                   <div>
                     <div className="text-sm font-medium" style={{ color: INK }}>{p.name}</div>
                     <div className="text-xs" style={{ color: SLATE }}>{p.category} · {p.sector} · {displayTier(p.tier || "unscored")}</div>
                   </div>
-                  <Badge status={p.status} />
-                </div>
+                  <div className="flex items-center gap-3"><Badge status={p.status} /><ChevronRight size={15} style={{ color: SLATE }} /></div>
+                </button>
               ))}
               {providers.length === 0 && <EmptyState text="No providers yet." />}
             </div>
           </>
+          )
         )}
       </div>
     </div>
