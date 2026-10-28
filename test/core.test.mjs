@@ -77,13 +77,48 @@ test("submission is forced to Pending, never self-verifies, records consent and 
   const s = await submit(api);
   assert.equal(s.status, 201);
   assert.match(s.body.ref, /^AIM-[A-Z0-9]{5}-[A-Z0-9]{5}$/);
+  assert.equal(s.body.emailStatus, "not_configured");
   const { headers } = await login(api);
   const all = await api("GET", "/admin/data", null, { headers });
   const p = all.body.providers[0];
   assert.equal(p.status, "Pending");
   assert.equal(p.totalScore, 0);
-  assert.equal(p.noticeVersion, "1.2");
+  assert.equal(p.noticeVersion, "1.3");
   assert.ok(p.consentAt);
+});
+
+test("submission emails the reference code through Resend when configured", async () => {
+  let request;
+  const api = setup(
+    { RESEND_API_KEY: "re_test_key", RESEND_FROM_EMAIL: "AImpact <ai@startuptn.in>" },
+    async (url, options) => {
+      request = { url, options };
+      return { ok: true, status: 200 };
+    },
+  );
+  const result = await submit(api);
+  assert.equal(result.status, 201);
+  assert.equal(result.body.emailStatus, "sent");
+  assert.equal(request.url, "https://api.resend.com/emails");
+  assert.equal(request.options.headers.Authorization, "Bearer re_test_key");
+  const message = JSON.parse(request.options.body);
+  assert.deepEqual(message.to, ["Asha@Example.com"]);
+  assert.ok(message.text.includes(result.body.ref));
+});
+
+test("email delivery failure does not lose the saved submission or reference code", async () => {
+  const api = setup(
+    { RESEND_API_KEY: "re_test_key", RESEND_FROM_EMAIL: "AImpact <ai@startuptn.in>" },
+    async () => ({ ok: false, status: 422 }),
+  );
+  const result = await submit(api);
+  assert.equal(result.status, 201);
+  assert.equal(result.body.emailStatus, "failed");
+  assert.equal((await api("POST", "/status", {
+    ref: result.body.ref,
+    email: "asha@example.com",
+    guard: {},
+  }, IP)).status, 200);
 });
 
 test("consent is required", async () => {
@@ -180,6 +215,26 @@ test("status checks are rate limited", async () => {
   let last;
   for (let i = 0; i < 25; i++) last = await api("POST", "/status", { ref: "AIM-AAAAA-AAAAA", email: "n@e.com", guard: {} }, { ip: "10.5.5.5" });
   assert.equal(last.status, 429);
+});
+
+test("unexpected status-check errors return a support code for server logs", async () => {
+  const store = memoryStore();
+  store.get = async () => { throw new Error("storage unavailable"); };
+  const api = setup({}, undefined, store);
+  const originalError = console.error;
+  console.error = () => {};
+  let result;
+  try {
+    result = await api("POST", "/status", {
+      ref: "AIM-AAAAA-AAAAA",
+      email: "asha@example.com",
+      guard: {},
+    }, IP);
+  } finally {
+    console.error = originalError;
+  }
+  assert.equal(result.status, 500);
+  assert.match(result.body.errorId, /^[a-f0-9]{16}$/);
 });
 
 test("briefs and expert validators have reference codes too", async () => {

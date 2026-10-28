@@ -99,7 +99,10 @@ function tierFromScore(total) {
   if (total >= 85) return { tier: "Premium", status: "Verified", color: BLUE };
   if (total >= 70) return { tier: "Standard", status: "Verified", color: BLUE };
   if (total >= 50) return { tier: "Conditional", status: "Conditional", color: GOLD };
-  return { tier: "Not verified", status: "Not verified", color: RED };
+  return { tier: "Not qualified", status: "Not qualified", color: RED };
+}
+function displayTier(tier) {
+  return tier === "Not verified" ? "Not qualified" : tier;
 }
 function consultantTierFromScore(total) {
   if (total >= 85) return { tier: "Priority", status: "Empanelled", color: BLUE };
@@ -348,9 +351,14 @@ function useFormGuard() {
   return { consent, ready, payload, reset, render };
 }
 
-function ReferenceCard({ code }) {
+function ReferenceCard({ code, emailStatus }) {
   const [copied, setCopied] = useState(false);
   if (!code) return null;
+  const emailMessage = emailStatus === "sent"
+    ? "We sent this code to your application email. Save it here too; you will need it and the same email address to check your status."
+    : emailStatus === "failed"
+      ? "Your application was received, but we could not send the confirmation email. Save this code now; you will need it and the same email address to check your status."
+      : "Email confirmation is not configured yet. Save this code now; you will need it and the same email address to check your status.";
   const copy = async () => {
     try { await navigator.clipboard.writeText(code); setCopied(true); setTimeout(() => setCopied(false), 2000); }
     catch { /* the code is on screen to copy by hand */ }
@@ -363,7 +371,7 @@ function ReferenceCard({ code }) {
         <button type="button" onClick={copy} className="text-sm font-medium flex items-center gap-1.5" style={{ color: BLUE }}><Copy size={14} /> {copied ? "Copied" : "Copy"}</button>
       </div>
       <p className="text-xs mt-2" style={{ color: SLATE }}>
-        Save this code now. It is shown only once and we cannot look it up for you. You will need it, with your email, to check your status.
+        {emailMessage}
       </p>
     </div>
   );
@@ -393,15 +401,17 @@ function Badge({ status }) {
     Delivery: { bg: GOLD_SOFT, fg: GOLD, icon: Clock },
     Matched: { bg: GOLD_SOFT, fg: GOLD, icon: Clock },
     Conditional: { bg: GOLD_SOFT, fg: GOLD, icon: AlertCircle },
+    "Not qualified": { bg: "#F4E7E1", fg: RED, icon: XCircle },
     "Not verified": { bg: "#F4E7E1", fg: RED, icon: XCircle },
     "Not empanelled": { bg: "#F4E7E1", fg: RED, icon: XCircle },
     "Not Completed": { bg: "#F4E7E1", fg: RED, icon: XCircle },
   };
   const s = map[status] || { bg: LINE, fg: SLATE, icon: Clock };
   const Icon = s.icon;
+  const label = displayTier(status);
   return (
     <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full" style={{ background: s.bg, color: s.fg }}>
-      <Icon size={12} /> {status}
+      <Icon size={12} /> {label}
     </span>
   );
 }
@@ -554,6 +564,7 @@ function SupplyRegisterView({ setView, providers, setProviders, persist }) {
   });
   const [done, setDone] = useState(false);
   const [ref, setRef] = useState("");
+  const [emailStatus, setEmailStatus] = useState("not_configured");
   const [saving, setSaving] = useState(false);
   const g = useFormGuard();
   const [error, setError] = useState("");
@@ -590,6 +601,7 @@ function SupplyRegisterView({ setView, providers, setProviders, persist }) {
     try {
       const res = await persist("providers", next, g.payload());
       setRef(res?.ref || "");
+      setEmailStatus(res?.emailStatus || "not_configured");
       setProviders(next);
       setDone(true);
     } catch (err) {
@@ -610,7 +622,7 @@ function SupplyRegisterView({ setView, providers, setProviders, persist }) {
           Statutory details (registration, GSTIN, PAN) are requested from shortlisted providers at the verification stage.
           Check back on the status page with your reference code and email.
         </p>
-        <ReferenceCard code={ref} />
+        <ReferenceCard code={ref} emailStatus={emailStatus} />
         <div className="flex gap-3">
           <Button variant="teal" onClick={() => setView("status-check")}>Check status</Button>
           <Button variant="ghost" onClick={() => setView("home")}>Back to home</Button>
@@ -705,6 +717,7 @@ function ConsultantApplyView({ setView, consultants, setConsultants, persist }) 
   });
   const [done, setDone] = useState(false);
   const [ref, setRef] = useState("");
+  const [emailStatus, setEmailStatus] = useState("not_configured");
   const [saving, setSaving] = useState(false);
   const g = useFormGuard();
   const [error, setError] = useState("");
@@ -729,6 +742,7 @@ function ConsultantApplyView({ setView, consultants, setConsultants, persist }) 
     try {
       const res = await persist("consultants", next, g.payload());
       setRef(res?.ref || "");
+      setEmailStatus(res?.emailStatus || "not_configured");
       setConsultants(next);
       setDone(true);
     } catch (err) {
@@ -748,7 +762,7 @@ function ConsultantApplyView({ setView, consultants, setConsultants, persist }) 
           Every candidate is checked against the Enablement Layer's conflict-of-interest and
           delivery-capability criteria before empanelment.
         </p>
-        <ReferenceCard code={ref} />
+        <ReferenceCard code={ref} emailStatus={emailStatus} />
         <div className="flex gap-3">
           <Button variant="teal" onClick={() => setView("status-check")}>Check status</Button>
           <Button variant="ghost" onClick={() => setView("home")}>Back to home</Button>
@@ -809,6 +823,7 @@ function DemandBriefView({ setView, briefs, setBriefs, persist }) {
   });
   const [done, setDone] = useState(false);
   const [ref, setRef] = useState("");
+  const [emailStatus, setEmailStatus] = useState("not_configured");
   const [saving, setSaving] = useState(false);
   const g = useFormGuard();
   const [error, setError] = useState("");
@@ -838,6 +853,7 @@ function DemandBriefView({ setView, briefs, setBriefs, persist }) {
     try {
       const res = await persist("briefs", next, g.payload());
       setRef(res?.ref || "");
+      setEmailStatus(res?.emailStatus || "not_configured");
       setBriefs(next);
       setDone(true);
     } catch (err) {
@@ -858,7 +874,7 @@ function DemandBriefView({ setView, briefs, setBriefs, persist }) {
           structured problem definition, then match it against verified providers. Track progress
           any time on the status page with your reference code and email. Registration and platform access stay free throughout.
         </p>
-        <ReferenceCard code={ref} />
+        <ReferenceCard code={ref} emailStatus={emailStatus} />
         <div className="flex gap-3">
           <Button variant="teal" onClick={() => setView("status-check")}>Check status</Button>
           <Button variant="ghost" onClick={() => setView("home")}>Back to home</Button>
@@ -940,7 +956,7 @@ function PrivacyView({ setView }) {
           <li><b>Provider applications:</b> contact person's name, designation, email and phone; organisation name, category and sector; what you have built, demo link and reference; what you would do for an SME.</li>
           <li><b>Expert validator applications:</b> name, track, expertise, experience or portfolio, availability, conflict-of-interest disclosure, email and phone.</li>
           <li><b>AI opportunity briefs:</b> organisation name, type and sector; the problem you describe and the outcome you want; contact email and phone.</li>
-          <li><b>When you submit:</b> the time of your consent, the version of this notice, and a reference code. We keep only a scrambled (hashed) form of the code, so we cannot look it up for you. With your email, it lets you check your status.</li>
+          <li><b>When you submit:</b> the time of your consent, the version of this notice, and a reference code. We keep only a scrambled (hashed) form of the code, so we cannot look it up for you. With your email, it lets you check your status. If email confirmation is enabled, we send the code to your application email address.</li>
           <li><b>Protection against misuse:</b> a scrambled (hashed) form of your network address, used only to limit how many forms one network can send. It cannot be turned back into your address, and these counters are deleted automatically after a short time.</li>
         </ul>
         <p>Please do not put sensitive personal information, such as ID numbers or health details, in free-text boxes. We do not ask for it.</p>
@@ -951,6 +967,7 @@ function PrivacyView({ setView }) {
           <li>To assess and verify providers, and to empanel expert validators.</li>
           <li>To scope briefs and help match them with verified providers.</li>
           <li>To contact you about your application or brief, and to show you its status.</li>
+          <li>To send your reference code by email when confirmation email is enabled.</li>
           <li>To report on the programme's results, using counts and summaries rather than individuals.</li>
           <li>To keep the site secure and stop spam.</li>
         </ul>
@@ -963,6 +980,10 @@ function PrivacyView({ setView }) {
           authenticator app. Contact details are opened one record at a time, and each time is recorded with the person's user ID.
         </p>
         <p>
+          When reference-code emails are enabled, Resend processes your email address and reference code to deliver the message.
+          Resend handles this information under its own privacy and data-processing terms.
+        </p>
+        <p>
           If a provider is verified, its organisation name, category, sector, description and listed capabilities appear in the
           public directory. Contact details and scores are not shown. Other visitors see only totals, such as the number of verified providers.
         </p>
@@ -970,7 +991,7 @@ function PrivacyView({ setView }) {
 
       <PrivacySection title="Where it is kept and for how long">
         <p>
-          Information is stored with our hosting provider, Netlify. Staff access needs a personal user ID and password.
+          Application information is stored with our hosting provider, Netlify. When reference-code emails are enabled, Resend processes your email address and code to deliver the confirmation. Staff access needs a personal user ID and password.
           We keep information for {SITE.retention}, and then delete it or remove what identifies you.
         </p>
         <p>
@@ -1060,7 +1081,9 @@ function StatusCheckView({ setView }) {
     try {
       setResult(await api.checkStatus(code.trim(), email.trim(), g.payload()));
     } catch (err) {
-      setError(err.status && err.status < 500 ? err.message : "We could not check the status right now. Please try again.");
+      setError(err.status && err.status < 500
+        ? err.message
+        : `Status check is temporarily unavailable. Please try again.${err.errorId ? ` If it continues, contact ${SITE.privacyEmail} and quote support code ${err.errorId}.` : ""}`);
       g.reset();
     } finally {
       setLoading(false);
@@ -1098,7 +1121,7 @@ function StatusCheckView({ setView }) {
             <div className="text-sm font-semibold" style={{ color: INK }}>{result.item.name} · {kindLabel[result.kind]}</div>
             <Badge status={result.item.status} />
           </div>
-          {result.item.tier && <div className="text-xs mt-1" style={{ color: SLATE }}>Tier: {result.item.tier} · Score: {result.item.totalScore}/100</div>}
+          {result.item.tier && <div className="text-xs mt-1" style={{ color: SLATE }}>Tier: {displayTier(result.item.tier)} · Score: {result.item.totalScore}/100</div>}
         </div>
       )}
     </PageShell>
@@ -1888,7 +1911,7 @@ function AdminView({ providers, setProviders, consultants, setConsultants, brief
                 <div key={p.id} className="py-3 flex items-center justify-between">
                   <div>
                     <div className="text-sm font-medium" style={{ color: INK }}>{p.name}</div>
-                    <div className="text-xs" style={{ color: SLATE }}>{p.category} · {p.sector} · {p.tier || "unscored"}</div>
+                    <div className="text-xs" style={{ color: SLATE }}>{p.category} · {p.sector} · {displayTier(p.tier || "unscored")}</div>
                   </div>
                   <Badge status={p.status} />
                 </div>

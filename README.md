@@ -28,6 +28,7 @@ AI Marketplace for Impact (StartupTN). A React site plus one serverless function
    - `VITE_GRIEVANCE_OFFICER`: `Chairperson, StartupTN`
    - `VITE_ORG_ADDRESS`: `StartupTN Office Space, 10th Floor, Chennai Metro Rail Limited Building, near Nandanam Metro Station, Chennai, Tamil Nadu 600035`
    - `VITE_RETENTION_PERIOD`: keep the already-approved value unchanged. If it has not been set yet, confirm the period with StartupTN before launch.
+   - To send reference codes by email, verify `startuptn.in` in Resend and create an API key, then set `RESEND_API_KEY` and `RESEND_FROM_EMAIL` (for example, `AImpact <ai@startuptn.in>`). Keep the API key private. If these settings are missing or email delivery fails, the application is still saved and the reference code is shown on screen with a warning.
 
    The `VITE_` values are public website content, not secrets. Keep `OWNER_PASSWORD` and `SESSION_SECRET` private. Add these variables for the deploy context you use (usually **Production**).
 4. Deploy or trigger a new deploy so the privacy text is rebuilt with the values. Open the site and choose **Enablement Layer sign-in** in the footer. Sign in with the owner ID and password. On first sign-in, scan the QR code with an authenticator app (Google Authenticator, Microsoft Authenticator and similar) and enter its 6-digit code. Two-step sign-in is required.
@@ -62,13 +63,13 @@ Add the domain in Netlify (**Domain management > Add a domain**, for example `ai
 - This is a deterrent and an audit trail, not a wall: a staff member who needs to see a record can see it.
 
 **Status checks**
-- At submission, each person is shown a reference code (like `AIM-ABCDE-12345`) once. The server keeps only a scrambled form. The status page needs the code and the email, and says the same thing for a wrong code or a wrong email.
+- At submission, each person is shown a reference code (like `AIM-ABCDE-12345`). The server keeps only a scrambled form. When Resend is configured, the code is emailed to the submitter; otherwise the page warns them to save it. The status page needs the code and the email, and says the same thing for a wrong code or a wrong email.
 
 **Browser protections** (set in `netlify.toml`): a Content-Security-Policy that only allows this site's own scripts (plus Cloudflare Turnstile if you switch it on), no framing, HSTS, and a restrictive permissions policy.
 
 **Privacy**
 - A public **Privacy notice** page, linked from the footer and from every form (`yoursite/#privacy` can be shared).
-- Every form has a required consent box. The time and the notice version (now 1.2) are saved with each submission.
+- Every form has a required consent box. The time and the notice version (now 1.3) are saved with each submission.
 - Owner-only **Data & exports** tool for access, correction and deletion requests.
 
 ## Backups and exports

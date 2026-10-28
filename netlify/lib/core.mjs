@@ -3,7 +3,7 @@
 import { createHash, createHmac, randomBytes, randomInt, scryptSync, timingSafeEqual } from "node:crypto";
 
 export const COLLECTIONS = ["providers", "consultants", "briefs"];
-export const NOTICE_VERSION = "1.2";
+export const NOTICE_VERSION = "1.3";
 // Contact details are not sent to the console with the lists. Staff fetch them one record at a
 // time (logged), and staff can never overwrite them or the consent evidence.
 export const PII_FIELDS = ["contactName", "designation", "contactEmail", "phone", "ref1"];
@@ -265,6 +265,49 @@ export function createApi({ store, env = {}, fetchFn = globalThis.fetch, sleep =
 
   const readAll = (collection) => readCollection(store, collection);
 
+  async function sendReferenceEmail(record, collection, code) {
+    if (!env.RESEND_API_KEY || !env.RESEND_FROM_EMAIL) return "not_configured";
+    const applicationType = {
+      providers: "provider application",
+      consultants: "expert validator application",
+      briefs: "AI opportunity brief",
+    }[collection];
+    const email = {
+      from: env.RESEND_FROM_EMAIL,
+      to: [record.contactEmail],
+      subject: "Your AImpact reference code",
+      text: [
+        "Thank you for submitting your AImpact application.",
+        `Submission type: ${applicationType}.`,
+        "",
+        `Your reference code is: ${formatRef(code)}`,
+        "",
+        "To check your application status, open AImpact and choose “Check application status”. Enter this code and the same email address you used to submit.",
+        "",
+        "Please keep this email for your records.",
+      ].join("\n"),
+    };
+    try {
+      const response = await fetchFn("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${env.RESEND_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(email),
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (!response.ok) {
+        console.error("Reference email delivery failed with status", response.status);
+        return "failed";
+      }
+      return "sent";
+    } catch (err) {
+      console.error("Reference email delivery request failed", err);
+      return "failed";
+    }
+  }
+
   // Compare-and-swap update: read the record with its version tag, compute the new value, and write
   // only if nobody else changed it in between. Return undefined from `fn` to leave it unchanged.
   async function casUpdate(key, fn, tries = 12) {
@@ -430,7 +473,8 @@ export function createApi({ store, env = {}, fetchFn = globalThis.fetch, sleep =
         record.refHash = refHash(code);
         await store.setJSON(`refs/${record.refHash}`, { c: collection, id: record.id });
         await store.setJSON(`${collection}/${record.id}`, record);
-        return { status: 201, body: { ok: true, id: record.id, ref: formatRef(code) } };
+        const emailStatus = await sendReferenceEmail(record, collection, code);
+        return { status: 201, body: { ok: true, id: record.id, ref: formatRef(code), emailStatus } };
       }
 
       // Status needs the reference code given at submission AND the email, and says nothing else.
@@ -685,8 +729,9 @@ export function createApi({ store, env = {}, fetchFn = globalThis.fetch, sleep =
 
       return { status: 404, body: { error: "Not found." } };
     } catch (err) {
-      console.error("API error", method, path, err);
-      return { status: 500, body: { error: "Something went wrong." } };
+      const errorId = randomBytes(8).toString("hex");
+      console.error("API error", errorId, method, path, err);
+      return { status: 500, body: { error: "Something went wrong.", errorId } };
     }
   };
 }

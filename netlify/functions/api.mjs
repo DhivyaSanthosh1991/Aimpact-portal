@@ -9,6 +9,8 @@ const handle = createApi({
     SESSION_SECRET: process.env.SESSION_SECRET,
     TURNSTILE_SECRET: process.env.TURNSTILE_SECRET,
     OWNER_2FA_RESET: process.env.OWNER_2FA_RESET,
+    RESEND_API_KEY: process.env.RESEND_API_KEY,
+    RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL,
   },
 });
 

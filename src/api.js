@@ -15,6 +15,7 @@ async function call(path, { method = "GET", body } = {}) {
   if (!res.ok) {
     const err = new Error((data && data.error) || `Request failed (${res.status})`);
     err.status = res.status;
+    err.errorId = data?.errorId;
     throw err;
   }
   return data;
