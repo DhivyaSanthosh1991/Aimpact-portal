@@ -82,7 +82,7 @@ test("submission is forced to Pending, never self-verifies, records consent and 
   const p = all.body.providers[0];
   assert.equal(p.status, "Pending");
   assert.equal(p.totalScore, 0);
-  assert.equal(p.noticeVersion, "1.1");
+  assert.equal(p.noticeVersion, "1.2");
   assert.ok(p.consentAt);
 });
 

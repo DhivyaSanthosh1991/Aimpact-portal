@@ -59,13 +59,13 @@ const FontStyles = () => (
 --------------------------------------------------------------- */
 const TBD = "[to be added before launch]";
 const SITE = {
-  privacyEmail: import.meta.env.VITE_PRIVACY_CONTACT_EMAIL || TBD,
-  officerName: import.meta.env.VITE_GRIEVANCE_OFFICER || TBD,
-  address: import.meta.env.VITE_ORG_ADDRESS || TBD,
+  privacyEmail: import.meta.env.VITE_PRIVACY_CONTACT_EMAIL || "ai@startuptn.in",
+  officerName: import.meta.env.VITE_GRIEVANCE_OFFICER || "Chairperson, StartupTN",
+  address: import.meta.env.VITE_ORG_ADDRESS || "StartupTN Office Space, 10th Floor, Chennai Metro Rail Limited Building, near Nandanam Metro Station, Chennai, Tamil Nadu 600035",
   retention: import.meta.env.VITE_RETENTION_PERIOD || TBD,
   turnstileKey: import.meta.env.VITE_TURNSTILE_SITE_KEY || "",
 };
-const NOTICE_DATE = "27 October 2026";
+const NOTICE_DATE = "28 October 2026";
 const CONTACT_FIELDS = ["contactName", "designation", "contactEmail", "phone", "ref1"]; // fetched per record by staff
 
 /* ---------------------------------------------------------------

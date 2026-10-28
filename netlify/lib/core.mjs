@@ -3,7 +3,7 @@
 import { createHash, createHmac, randomBytes, randomInt, scryptSync, timingSafeEqual } from "node:crypto";
 
 export const COLLECTIONS = ["providers", "consultants", "briefs"];
-export const NOTICE_VERSION = "1.1";
+export const NOTICE_VERSION = "1.2";
 // Contact details are not sent to the console with the lists. Staff fetch them one record at a
 // time (logged), and staff can never overwrite them or the consent evidence.
 export const PII_FIELDS = ["contactName", "designation", "contactEmail", "phone", "ref1"];

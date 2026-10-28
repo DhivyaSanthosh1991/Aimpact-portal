@@ -20,12 +20,17 @@ AI Marketplace for Impact (StartupTN). A React site plus one serverless function
 
 1. Put this folder in a GitHub repository, or use the Netlify CLI.
 2. In Netlify choose **Add new site > Import an existing project** and pick the repository. Build settings come from `netlify.toml`.
-3. Before the first deploy, open **Site configuration > Environment variables** and add the settings from `.env.example`. These four are required:
-   - `OWNER_USER_ID`, `OWNER_PASSWORD`: the owner's sign-in.
-   - `SESSION_SECRET`: at least 32 random characters.
-   - `VITE_PRIVACY_CONTACT_EMAIL`: where people send privacy requests.
-   The other privacy settings (`VITE_GRIEVANCE_OFFICER`, `VITE_ORG_ADDRESS`, `VITE_RETENTION_PERIOD`) fill in the public privacy notice. Until you set them, the notice shows "[to be added before launch]".
-4. Deploy. Open the site, submit a test application (note the reference code), then open **Enablement Layer sign-in** in the footer. Sign in as the owner. The first time, you set up two-step sign-in: scan the QR code with an authenticator app (Google Authenticator, Microsoft Authenticator and similar) and enter the code it shows.
+3. Before the first deploy, open **Site configuration > Environment variables** and add:
+   - `OWNER_USER_ID`: the owner's chosen sign-in ID.
+   - `OWNER_PASSWORD`: a unique passphrase of at least 16 characters. Do not use a password from another account.
+   - `SESSION_SECRET`: at least 32 random characters. Generate one locally with `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"`; do not commit it.
+   - `VITE_PRIVACY_CONTACT_EMAIL`: `ai@startuptn.in`
+   - `VITE_GRIEVANCE_OFFICER`: `Chairperson, StartupTN`
+   - `VITE_ORG_ADDRESS`: `StartupTN Office Space, 10th Floor, Chennai Metro Rail Limited Building, near Nandanam Metro Station, Chennai, Tamil Nadu 600035`
+   - `VITE_RETENTION_PERIOD`: keep the already-approved value unchanged. If it has not been set yet, confirm the period with StartupTN before launch.
+
+   The `VITE_` values are public website content, not secrets. Keep `OWNER_PASSWORD` and `SESSION_SECRET` private. Add these variables for the deploy context you use (usually **Production**).
+4. Deploy or trigger a new deploy so the privacy text is rebuilt with the values. Open the site and choose **Enablement Layer sign-in** in the footer. Sign in with the owner ID and password. On first sign-in, scan the QR code with an authenticator app (Google Authenticator, Microsoft Authenticator and similar) and enter its 6-digit code. Two-step sign-in is required.
 5. In the console, open **Staff accounts** and create an account for each team member. Each person sets up their own authenticator at their first sign-in. Use **Data & exports** to find and delete a person's records, and to download the data.
 6. **Smoke test after the first deploy** (see "Not yet tested on a live site" below): submit three test forms in a row, check the status page with the reference code, sign in, open a record, download an export.
 
@@ -63,7 +68,7 @@ Add the domain in Netlify (**Domain management > Add a domain**, for example `ai
 
 **Privacy**
 - A public **Privacy notice** page, linked from the footer and from every form (`yoursite/#privacy` can be shared).
-- Every form has a required consent box. The time and the notice version (now 1.1) are saved with each submission.
+- Every form has a required consent box. The time and the notice version (now 1.2) are saved with each submission.
 - Owner-only **Data & exports** tool for access, correction and deletion requests.
 
 ## Backups and exports
